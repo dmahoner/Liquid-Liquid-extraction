@@ -2,99 +2,46 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Constants
-WATER_DENSITY = 997  # kg/m^3 (Density of water at 25°C)
-WATER_VISCOSITY = 0.001  # Pa·s (Viscosity of water at 25°C)
-
-# Function to calculate Reynolds number
-def calculate_reynolds_number(flow_rate, diameter, density, viscosity):
-    velocity = (4 * flow_rate) / (np.pi * diameter ** 2)
-    reynolds_number = (density * velocity * diameter) / viscosity
-    return reynolds_number, velocity
-
-# Function to calculate pressure drop using Darcy-Weisbach equation
-def calculate_pressure_drop(reynolds_number, length, diameter, velocity, density):
-    if reynolds_number < 2000:
-        friction_factor = 64 / reynolds_number  # Laminar flow
-    else:
-        friction_factor = 0.079 / (reynolds_number ** 0.25)  # Turbulent flow approximation
-    pressure_drop = friction_factor * (length / diameter) * (0.5 * density * velocity ** 2)
-    return pressure_drop
+# Function to calculate solute distribution between two phases (based on distribution ratio)
+def calculate_distribution(c_s, D):
+    c_o = D * c_s  # Solute concentration in organic phase
+    return c_o
 
 # Streamlit app interface
-st.title("Reynolds Number and Pressure Drop Calculator")
+st.title("Liquid-Liquid Extraction: Tie-Line Diagram")
 
-# Input section for fluid properties
-st.header("Fluid Properties")
-density = st.number_input("Fluid Density (kg/m³)", value=WATER_DENSITY)
-viscosity = st.number_input("Fluid Viscosity (Pa·s)", value=WATER_VISCOSITY)
-flow_rate = st.number_input("Flow Rate (m³/s)", value=0.01)
+# Input section for solute concentration in aqueous phase and distribution ratio
+st.header("Input Data for Liquid-Liquid Extraction")
+c_s = st.number_input("Initial solute concentration in aqueous phase (mol/L)", value=0.1, min_value=0.01, max_value=1.0, step=0.01)
+D = st.number_input("Distribution Ratio (D)", value=2.0, min_value=0.1, max_value=10.0, step=0.1)
 
-# Input section for pipe dimensions
-st.header("Pipe Dimensions")
-diameter = st.number_input("Pipe Diameter (m)", value=0.1)
-length = st.number_input("Pipe Length (m)", value=10)
+# Generate solute concentrations in aqueous phase (x-axis)
+c_s_range = np.linspace(0.01, 1.0, 100)  # Solute concentrations in aqueous phase
+c_o_range = calculate_distribution(c_s_range, D)  # Corresponding concentrations in organic phase
 
-# Calculate Reynolds number and velocity
-reynolds_number, velocity = calculate_reynolds_number(flow_rate, diameter, density, viscosity)
-
-# Display Reynolds number and flow regime
-st.header("Results")
-st.write(f"Reynolds Number: {reynolds_number:.2f}")
-
-if reynolds_number < 2000:
-    st.write("Flow Regime: Laminar")
-elif 2000 <= reynolds_number <= 4000:
-    st.write("Flow Regime: Transitional")
-else:
-    st.write("Flow Regime: Turbulent")
-
-# Pressure drop calculation
-pressure_drop = calculate_pressure_drop(reynolds_number, length, diameter, velocity, density)
-st.write(f"Pressure Drop: {pressure_drop:.2f} Pa")
-
-# Graph: Relationship between velocity and Reynolds number
-st.header("Graph: Velocity vs Reynolds Number")
-
-# Generate data for graph
-flow_rates = np.linspace(0.001, 0.05, 100)  # Various flow rates in m³/s
-reynolds_numbers = []
-velocities = []
-
-for q in flow_rates:
-    re_num, vel = calculate_reynolds_number(q, diameter, density, viscosity)
-    reynolds_numbers.append(re_num)
-    velocities.append(vel)
-
-# Plot velocity vs Reynolds number
+# Plotting the tie-line diagram (c_s vs. c_o)
+st.header("Tie-Line Diagram: Solute Distribution between Phases")
 fig, ax = plt.subplots()
-ax.plot(velocities, reynolds_numbers, label="Reynolds Number")
-ax.axhline(2000, color='green', linestyle='--', label="Laminar-Turbulent Threshold")
-ax.axhline(4000, color='red', linestyle='--', label="Turbulent Flow Start")
-ax.set_xlabel("Flow Velocity (m/s)")
-ax.set_ylabel("Reynolds Number")
-ax.set_title("Relationship between Velocity and Reynolds Number")
+
+# Plot solute distribution in both phases
+ax.plot(c_s_range, c_o_range, label="Tie Line", color='blue')
+
+# Add labels and title
+ax.set_xlabel("Solute Concentration in Aqueous Phase (mol/L)")
+ax.set_ylabel("Solute Concentration in Organic Phase (mol/L)")
+ax.set_title("Tie-Line Diagram: Liquid-Liquid Extraction")
 ax.legend()
 
-# Show the plot in Streamlit
+# Display the plot in Streamlit
 st.pyplot(fig)
 
-# Graph: Relationship between pressure drop and Reynolds number
-st.header("Graph: Pressure Drop vs Reynolds Number")
+# Output the calculated solute concentrations for the given initial concentration
+c_o = calculate_distribution(c_s, D)
+st.write(f"For an initial solute concentration of {c_s:.2f} mol/L in the aqueous phase, the solute concentration in the organic phase is {c_o:.2f} mol/L.")
 
-pressure_drops = []
-
-for re_num, vel in zip(reynolds_numbers, velocities):
-    pressure_drop = calculate_pressure_drop(re_num, length, diameter, vel, density)
-    pressure_drops.append(pressure_drop)
-
-# Plot pressure drop vs Reynolds number
-fig2, ax2 = plt.subplots()
-ax2.plot(reynolds_numbers, pressure_drops, label="Pressure Drop", color='orange')
-ax2.set_xlabel("Reynolds Number")
-ax2.set_ylabel("Pressure Drop (Pa)")
-ax2.set_title("Relationship between Reynolds Number and Pressure Drop")
-ax2.legend()
-
-# Show the plot in Streamlit
-st.pyplot(fig2)
+# Conclusion and analysis
+st.write("""
+This tie-line diagram illustrates the equilibrium distribution of a solute between two immiscible phases (aqueous and organic).
+The slope of the line depends on the distribution ratio (D), which is the ratio of solute concentration in the organic phase to that in the aqueous phase.
+A higher D indicates that the solute prefers the organic phase, while a lower D indicates preference for the aqueous phase.
+""")
